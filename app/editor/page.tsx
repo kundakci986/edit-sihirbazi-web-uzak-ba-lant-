@@ -1688,10 +1688,12 @@ const exportWasm = async () => {
     setExportStatusText("✅ Dışa aktarma tamamlandı!");
 
     // FFmpeg çıktı dosyasını oku ve blob oluştur
-    const outData = ffmpeg.FS("readFile", "output.mp4");
-    const outBlob = new Blob([outData.buffer], { type: "video/mp4" });
-    const url = URL.createObjectURL(outBlob);
-    setDownloadUrl(url);
+const outData = ffmpeg.FS("readFile", "output.mp4");
+// Uint8Array'i doğrudan Blob'a veriyoruz, buffer'la uğraşmıyoruz
+const blobOut = new Blob([outData], { type: "video/mp4" });
+const url = URL.createObjectURL(blobOut);
+setDownloadUrl(url);
+
 
   } catch (err: any) {
     console.error("❌ Dışa aktarma hatası:", err);
