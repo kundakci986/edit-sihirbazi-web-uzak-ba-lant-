@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* GENEL */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+  overscroll-behavior: none;
+}
+
+video {
+  object-fit: contain;
+  background: #000;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { height: 0; width: 0; }
+
+/* BUTTON */
+button {
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+button:hover { opacity: 0.9; }
+button:active { transform: scale(0.97); }
+
+/* ✅ YENİ — CapCut Timeline */
+
+/* ✅ Segment */
+.segment {
+  background: #e7e7e7;
+  box-shadow: inset 0 0 0 1px #00000088;
+}
+
+/* ✅ Segment Index Label */
+.segment-label {
+  position: absolute;
+  top: -18px;
+  font-size: 10px;
+  background: #0009;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid #444;
+  color: #fff;
+  pointer-events: none;
+}
+
+/* ✅ Global Trim Bölgesi */
+.trim-region {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: #ffffff22;
+  border-radius: 6px;
+}
+
+
+/* ✅ Playhead (Lazer çizgi) */
+/* imleç görünümü */
+.playhead {
+  position: absolute;
+  top: -5px;
+  width: 3px;
+  height: calc(100% + 60px);
+  background: #00e1ff;
+  box-shadow: 0 0 10px #00e1ff, 0 0 20px #00e1ff;
+  border-radius: 2px;
+  z-index: 20;
+}
+
+
+/* ✅ Trim Handle */
+.trim-handle {
+  background: #fff;
+  border: 2px solid #12fce3;
+  width: 10px !important;
+  height: 30px !important;
+  border-radius: 5px;
+  cursor: ew-resize;
+  position: relative;
+  z-index: 30;
+}
+
+/* ✅ Audio Playhead */
+.audio-playhead {
+  position: absolute;
+  top: -5px;
+  width: 3px;
+  height: calc(100% + 10px);
+  background: #00e1ff;
+  border-radius: 3px;
+  box-shadow: 0 0 10px #00e1ff;
+  transition: left 0.08s linear;
+}
+/* === Geniş VIDEO Timeline === */
+.video-track{
+  position: relative;
+  height: 80px;           /* 50 -> 80 */
+  background:#111;
+  border:1px solid #333;
+  border-radius:8px;
+  overflow:hidden;
+  display:flex;
+}
+
+
+
+
+
+/* === FIX MUSIC TIMELINE VISIBILITY === */
+.music-timeline {
+  height: 8px !important;
+  background: #1d1d1d !important;
+  border-radius: 4px;
+  border: 1px solid #3b3b3b !important;
+  position: relative;
+  margin-top: 8px !important;
+  margin-bottom: 20px !important;
+  box-shadow: inset 0 0 6px #000 !important;
+}
+
+/* === SEGMENT LABEL POSITION === */
+.segment-label {
+  top: -14px !important;
+  background: #222 !important;
+  border: 1px solid #555 !important;
+  color: #fff !important;
+  padding: 2px 5px !important;
+  border-radius: 4px !important;
+  font-size: 10px !important;
+}
+/* ==== GENİŞ MÜZİK TRACK ==== */
+.music-track {
+  position: relative;
+  height: 40px;                 /* barı büyüttük */
+  background: #121212;          /* koyu zemin */
+  border: 1px solid #2b2b2b;
+  border-radius: 10px;
+  margin-bottom: 24px;
+  box-shadow: inset 0 0 10px #000;
+}
+
+/* waveform katmanı */
+.wave-layer{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:18px;            /* dalga yüksekliği */
+  z-index:5;
+}
+
+
+/* kalın playhead: tüm yüksekliği kapsar */
+.audio-playhead-thick {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: #00e1ff;
+  border-radius: 3px;
+  box-shadow: 0 0 10px #00e1ff, 0 0 18px #00e1ff;
+  z-index: 20;
+}
+
+
+
+.thumbnail {
+  height: 100%;
+  width: auto;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.thumbnail:last-child {
+  border-right: none;
+}
+.frames-layer,
+.thumbnail {
+  z-index: 2;
+}
+
+.segment-layer,
+.audio-playhead-thick,
+.trim-handle {
+  z-index: 10 !important;
+}
+.frames-layer{
+  position:absolute;
+  top:0;
+  left:0;
+  height:52px;            /* frame alanı */
+  display:flex;
+  z-index:2;
+}
+
+/* Zoom yaparken canvas net kalsın */
+canvas {
+  image-rendering: pixelated;
+  transform-origin: left;
+}
+/* === Video üzerindeki yerleşik Play/Pause overlay'lerini tamamen gizle === */
+video::-webkit-media-controls,
+video::-webkit-media-controls-enclosure,
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
