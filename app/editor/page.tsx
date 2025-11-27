@@ -908,18 +908,50 @@ const wireMusicGain = (idx: number) => {
 };
 // --- Mouse tekerleğiyle yakınlaştırma ---
 const handleWheelZoom = (e: React.WheelEvent<HTMLDivElement>) => {
-  if (!e.altKey) return; // sadece Alt basılıyken zoom aktif
+  // Sadece Alt basılıyken zoom aktif olsun
+  if (!e.altKey) return;
+
   e.preventDefault();
   e.stopPropagation();
-const targetVp = e.currentTarget as HTMLDivElement;
-const vps = linkTracks
-  ? [videoViewportRef.current, musicViewportRef.current].filter(Boolean) as HTMLDivElement[]
-  : [targetVp];
-// ...
-vps.forEach((vp) => { /* ... */ });
-  setZoom(newZ);
-  pxPerSecRef.current = newPx;
+
+  const targetVp = e.currentTarget as HTMLDivElement;
+
+  // Track'ler bağlıysa her iki viewport'u, değilse sadece hedefi güncelle
+  const viewports: HTMLDivElement[] = linkTracks
+    ? [videoViewportRef.current, musicViewportRef.current].filter(
+        (v): v is HTMLDivElement => !!v
+      )
+    : [targetVp];
+
+  setZoom((prevZoom) => {
+    // deltaY > 0 → aşağı → uzaklaş, < 0 → yukarı → yakınlaş
+    const delta = e.deltaY;
+    const step = 0.15;
+
+    let nextZoom = prevZoom + (delta > 0 ? -step : step);
+
+    const MIN_ZOOM = 0.25;
+    const MAX_ZOOM = 5;
+    if (nextZoom < MIN_ZOOM) nextZoom = MIN_ZOOM;
+    if (nextZoom > MAX_ZOOM) nextZoom = MAX_ZOOM;
+
+    const newPxPerSec = 120 * nextZoom;
+    const oldPxPerSec = pxPerSec; // bu render'daki mevcut değer
+
+    pxPerSecRef.current = newPxPerSec;
+
+    // Basit yaklaşım: merkezdeki zamanı koruyarak scroll'u ayarla
+    viewports.forEach((vp) => {
+      const centerX = vp.clientWidth / 2;
+      const beforeTime = (vp.scrollLeft + centerX - gap) / (oldPxPerSec || 1);
+      const afterScrollLeft = beforeTime * newPxPerSec + gap - centerX;
+      vp.scrollLeft = Math.max(0, afterScrollLeft);
+    });
+
+    return nextZoom;
+  });
 };
+
 // --- Orta tuş sürükleme ile zoom ---
 const makeMiddleDragZoom = (kind: TrackKind) => (e: React.MouseEvent<HTMLDivElement>) => {
   // 🚫 Artık hiçbir şey yapmasın
