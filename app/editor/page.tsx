@@ -101,6 +101,8 @@ const [showBlackFrame, setShowBlackFrame] = useState(false);
 const videoEndedRef = useRef(false);
 
 const [time, setTime] = useState(0);
+const newTime = time;
+
 const [duration, setDuration] = useState(0);
 
 
