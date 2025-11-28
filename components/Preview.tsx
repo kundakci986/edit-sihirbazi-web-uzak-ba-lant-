@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef } from 'react'
-import { useEditorStore } from '@/store/editorStore'
+import { useEditorStore } from '../store/editorStore';
+
 
 
 export default function Preview() {

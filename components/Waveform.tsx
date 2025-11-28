@@ -1,21 +1,17 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { getWaveform } from '@/lib/waveform'
+'use client';
 
+type WaveformProps = {
+  audioUrl: string;
+};
 
-export default function Waveform({ audioUrl }: { audioUrl: string }) {
-const [peaks, setPeaks] = useState<number[]>([])
-useEffect(()=>{
-if (!audioUrl) return
-getWaveform(audioUrl).then(setPeaks)
-}, [audioUrl])
+export default function Waveform({ audioUrl }: WaveformProps) {
+  // Şimdilik gerçek waveform hesabı yok, sadece placeholder.
+  const hasAudio = !!audioUrl;
 
-
-return (
-<div className="flex items-end h-16 gap-[2px] px-5 py-2 bg-black/40 border-t border-gray-800">
-{peaks.map((p,i)=> (
-<div key={i} className="bg-green-500/70 w-[3px]" style={{ height: `${Math.max(4, p*60)}px` }} />
-))}
-</div>
-)
+  return (
+    <div className="w-full h-10 flex items-center justify-center text-[10px] text-gray-500 bg-black/40 border border-gray-800 rounded">
+      Waveform bileşeni şu an devre dışı.
+      {hasAudio && <span className="ml-1 text-gray-600">(ses yüklü)</span>}
+    </div>
+  );
 }

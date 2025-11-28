@@ -1,41 +1,43 @@
-'use client'
-import { useRouter } from 'next/navigation'
-import { useEditorStore } from '@/store/editorStore'
+'use client';
 
+import { useRouter } from 'next/navigation';
 
-export default function Sidebar({ onCut, onExport }: { onCut: () => void, onExport: () => void }) {
-const router = useRouter()
-const setMedia = useEditorStore(s => s.setMedia)
-const setAudio = useEditorStore(s => s.setAudio)
+type SidebarProps = {
+  onCut: () => void;
+  onExport: () => void;
+};
 
+export default function Sidebar({ onCut, onExport }: SidebarProps) {
+  const router = useRouter();
 
-return (
-<aside className="bg-[#1a1a1a] border-r border-gray-700 p-3 flex flex-col items-center gap-3">
-<label className="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded cursor-pointer">
-📁 Medya
-<input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => {
-const f = e.target.files?.[0]; if (!f) return;
-const url = URL.createObjectURL(f)
-setMedia(url, f.type)
-sessionStorage.setItem('selectedFileUrl', url)
-sessionStorage.setItem('selectedFileType', f.type)
-}} />
-</label>
+  return (
+    <aside className="w-40 bg-[#111111] border-r border-gray-800 flex flex-col gap-3 p-3 text-sm">
+      <button
+        onClick={() => router.push('/')}
+        className="w-full px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-200"
+      >
+        🏠 Ana Sayfa
+      </button>
 
+      <button
+        onClick={onCut}
+        className="w-full px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-500 text-white font-semibold"
+      >
+        ✂️ Kes
+      </button>
 
-<label className="text-xs bg-blue-700 hover:bg-blue-600 px-2 py-1 rounded cursor-pointer">
-🎵 Müzik
-<input type="file" accept="audio/*" className="hidden" onChange={(e) => {
-const f = e.target.files?.[0]; if (!f) return;
-const url = URL.createObjectURL(f)
-setAudio(url)
-}} />
-</label>
+      <button
+        onClick={onExport}
+        className="w-full px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-500 text-white font-semibold"
+      >
+        ⬆️ Dışa Aktar
+      </button>
 
-
-<button onClick={onCut} className="text-xs bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded w-full">✂ Kes</button>
-<button onClick={onExport} className="text-xs bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded w-full">💾 Export</button>
-<button onClick={() => router.push('/')} className="mt-auto bg-red-700 hover:bg-red-600 px-3 py-2 rounded w-full">⬅ Çık</button>
-</aside>
-)
+      <div className="mt-2 text-[11px] text-gray-500">
+        Bu panel şimdilik sadeleştirildi.  
+        Şablon sihirbazını tekrar kullanmak istersek,
+        buraya gelişmiş butonları geri koyarız.
+      </div>
+    </aside>
+  );
 }

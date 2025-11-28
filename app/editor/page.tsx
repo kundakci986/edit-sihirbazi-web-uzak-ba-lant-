@@ -1689,14 +1689,11 @@ const exportWasm = async () => {
 
     // FFmpeg çıktı dosyasını oku ve blob oluştur
 const outData = ffmpeg.FS("readFile", "output.mp4") as Uint8Array;
-
-// TypeScript burada gereksiz kasıyor, o yüzden buffer'ı açıkça 'any' yapıp susturuyoruz.
-// Runtime'da sorun yok, ffmpeg çıktılarını böyle Blob'a çevirmek gayet normal.
-const blobOut = new Blob([outData.buffer as any], { type: "video/mp4" });
-
+// TS burada SharedArrayBuffer ihtimalinden korkuyor, ama bizim için normal ArrayBuffer.
+// Bu yüzden buffer'ı açıkça ArrayBuffer olarak işaretliyoruz.
+const blobOut = new Blob([outData.buffer as ArrayBuffer], { type: "video/mp4" });
 const url = URL.createObjectURL(blobOut);
 setDownloadUrl(url);
-
 
 
   } catch (err: any) {
@@ -1745,7 +1742,8 @@ const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration 
   const totalDurationSec = baseDurAll + getAppendTotalSec();
 
   // --- UI ---
-  return ( <main
+ return (
+   <main
     className="w-full max-w-[900px] mx-auto min-h-screen flex flex-col items-center justify-start bg-black text-white overflow-y-scroll overflow-x-hidden"
     onClick={(e) => {
       // 🔹 Menüler her yerde tıklayınca kapansın
@@ -2163,19 +2161,18 @@ onEnded={() => {
   </div>
 </div>
 <div
-onMouseUpCapture={() => {
-  if (longPressTimerRef.current) {
-    clearTimeout(longPressTimerRef.current);
-    longPressTimerRef.current = null;
-  }
-}}
-onMouseLeave={() => {
-  if (longPressTimerRef.current) {
-    clearTimeout(longPressTimerRef.current);
-    longPressTimerRef.current = null;
-  }
-}}
-
+  onMouseUpCapture={() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }}
+  onMouseLeave={() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }}
   ref={videoViewportRef}
 onClick={(e) => {
   e.stopPropagation();
@@ -2736,56 +2733,30 @@ style={{
     (Müzik eklenmedi)
   </div>
 )}
-  {/* 🎵 Müzik katmanları */}
-  {musicLayers.length > 0 && (
-    // 👇 bu sarmalayıcıya relative ekle ki toast'ı ortalayabilelim
-    <div className="flex flex-col gap-3 mt-2 relative">
-      {musicLayers.map((url, idx) => {
-        const isSelected = selectedMusicLayer === idx;
-
-        return (
+   {/* 🎵 Müzik katmanları */}
+{musicLayers.length > 0 ? (
+  // 👇 bu sarmalayıcıya relative ekle ki toast'ı ortalayabilelim
+  <div className="flex flex-col gap-3 mt-2 relative">
+    {musicLayers.map((url, idx) => {
+      const isSelected = selectedMusicLayer === idx;
+      const audio = musicAudioRefs.current[idx];
+      return (
+        <div
+          key={idx}
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedMusicLayer(idx);
+            setSelectedTrack("music");
+          }}
+          className={`group relative rounded-2xl border-2 bg-[#0f0f0f] transition-all cursor-pointer overflow-hidden ${
+            isSelected
+              ? "border-[#22c55e] shadow-[0_0_16px_rgba(34,197,94,0.85)]"
+              : "border-[#22c55e]/40 hover:border-[#22c55e]/80 hover:shadow-[0_0_12px_rgba(34,197,94,0.5)]"
+          }`}
+          style={{ height: "88px" }}
+        >
+          {/* 🔘 Sol üst: BÜYÜTÜLMÜŞ butonlar */}
           <div
-            key={idx}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedMusicLayer(idx);
-              setSelectedTrack("music");
-            }}
-            className={`group relative rounded-2xl border-2 bg-[#0f0f0f] transition-all cursor-pointer overflow-hidden ${
-              isSelected
-                ? "border-violet-500 shadow-[0_0_20px_rgba(139,92,246,0.8)]"
-                : "border-neutral-700"
-            }`}
-          >
-            {/* 🎧 Ses tag'i (ref ile kontrol) */}
-            <audio
-              ref={(el) => {
-                if (el) {
-                  musicAudioRefs.current[idx] = el;
-                }
-              }}
-              src={url}
-              preload="auto"
-              crossOrigin="anonymous"
-              controls
-            />
-
-            {/* 🌊 Dalga formu */}
-            <WaveformTrack
-              audioUrl={url}
-              pxPerSec={mPxPerSec}
-              durationSec={duration}
-              currentTime={
-                selectedTrack === "music" && selectedMusicLayer === idx
-                  ? time
-                  : 0
-              }
-            />
-          </div>
-        );
-      })}
-    </div>
-  )}
   className="absolute top-2 left-3 flex gap-3 z-10"
   style={{
     transform: `translateX(${musicScroll}px)`,
@@ -2961,8 +2932,8 @@ onClick={(e) => {
             // henüz ölçülmediyse yedek olarak global time
             currentTime={musicTimes[idx] ?? 0}
           />
-          {/* Ses tag'i (ref ile kontrol) */}
-         <audio
+         {/* Ses tag'i (ref ile kontrol) */}
+<audio
   ref={(el) => {
     if (el) {
       musicAudioRefs.current[idx] = el;
@@ -2971,19 +2942,18 @@ onClick={(e) => {
   src={url}
   preload="auto"
   crossOrigin="anonymous"
+  controls
+  onTimeUpdate={(e) => {
+    const t = e.currentTarget.currentTime;
+    setMusicTimes((prev) => {
+      const next = [...prev];
+      next[idx] = t;
+      return next;
+    });
+  }}
+  className="absolute bottom-1 right-2 opacity-50 hover:opacity-100 w-[120px]"
 />
 
-            controls
-            onTimeUpdate={(e) => {
-              const t = e.currentTarget.currentTime;
-              setMusicTimes((prev) => {
-                const next = [...prev];
-                next[idx] = t;
-                return next;
-              });
-            }}
-            className="absolute bottom-1 right-2 opacity-50 hover:opacity-100 w-[120px]"
-          />
         </div>
       );
     })}
@@ -3505,15 +3475,18 @@ onClick={(e) => {
     >
       🗑️ Sil
     </button>
-    <button
+        <button
       className="text-yellow-400 hover:text-yellow-300 font-semibold"
       onClick={() => {
-        if (audio) audio.muted = !audio.muted;
+        if (audioRef.current) {
+          audioRef.current.muted = !audioRef.current.muted;
+        }
         setContextMenu(null);
       }}
     >
-      🔇 Ses {audio?.muted ? "Aç" : "Kapat"}
+      🔇 Ses {audioRef.current?.muted ? "Aç" : "Kapat"}
     </button>
+
   </div>
 )}
 {showMenu && (
