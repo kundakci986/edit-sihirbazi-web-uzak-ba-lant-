@@ -1744,7 +1744,8 @@ const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration 
   // --- UI ---
  return (
    <main
-    className="w-full max-w-[900px] mx-auto min-h-screen flex flex-col items-center justify-start bg-black text-white overflow-y-scroll overflow-x-hidden"
+   <main
+  className="w-full max-w-[900px] mx-auto min-h-screen flex flex-col items-center justify-start bg-black text-white overflow-y-auto overflow-x-hidden px-2"
     onClick={(e) => {
       // 🔹 Menüler her yerde tıklayınca kapansın
       setContextMenu(null);
@@ -2178,7 +2179,7 @@ onClick={(e) => {
   e.stopPropagation();
   setSelectedTrack(selectedTrack === "video" ? "none" : "video");
 }}
-className="relative w-full flex flex-col gap-3 overflow-x-auto scrollbar-hide rounded-xl select-none touch-none bg-[#0b0b0b] transition-all duration-300"
+className="relative w-full flex flex-col gap-3 overflow-x-auto scrollbar-hide rounded-xl select-none bg-[#0b0b0b] transition-all duration-300"
       style={{ height: `${100 + (zoom - 1) * 0}px` }}
       onContextMenu={(e)=>e.preventDefault()}
       onWheel={handleWheelZoom}
@@ -2705,7 +2706,7 @@ setTimeout(() => {
   e.stopPropagation();
   setSelectedTrack(selectedTrack === "music" ? "none" : "music");
 }}
-className="relative w-full flex flex-col gap-2 overflow-x-auto scrollbar-hide rounded-xl select-none touch-none bg-[#0b0b0b] transition-all duration-300"
+className="relative w-full flex flex-col gap-2 overflow-x-auto scrollbar-hide rounded-xl select-none bg-[#0b0b0b] transition-all duration-300"
 onContextMenu={(e)=>e.preventDefault()}
 onWheel={handleWheelZoom}
 onMouseDown={makePanDrag("music")}
