@@ -345,7 +345,7 @@ useEffect(() => {
     const shouldSelfDrive =
       fileType?.startsWith("image") || videoEndedRef.current;
 
-        if (shouldSelfDrive) {
+    if (shouldSelfDrive) {
       if (lastTsRef.current == null) lastTsRef.current = now;
       const dt = (now - lastTsRef.current) / 1000;
       lastTsRef.current = now;
@@ -362,7 +362,6 @@ useEffect(() => {
         return next;
       });
     }
-
 
     scrollAnim();
     raf = requestAnimationFrame(tick);
@@ -2077,8 +2076,9 @@ onEnded={() => {
   // 🎬 Video bitti: siyah ekran göster
   setShowBlackFrame(true);
 
-  // ⏱ Artık süreyi video değil, biz akıtacağız
-  videoEndedRef.current = true;
+  // Global oynatmayı kapat
+  setPlaying(false);
+  playingRef.current = false;
 
   // Videoyu son karede sabitle (istersen 0'a da alabiliriz)
   if (videoRef.current) {
@@ -2088,11 +2088,14 @@ onEnded={() => {
     v.currentTime = end;
   }
 
-  // 🎵 MÜZİĞE DOKUNMA:
-  // en uzun time bitene kadar çalmaya devam etsin.
+  // Ana müziği otomatik BAŞLATMA, varsa durdur
+  const a = audioRef.current;
+  if (a) {
+    a.pause();
+    // a.currentTime'i 0'a ALMADIĞIM için baştan tekrar başlamaz
+    // istersen buraya: a.currentTime = 0; da ekleyebiliriz
+  }
 }}
-
-
 
 
     />
