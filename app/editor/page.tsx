@@ -345,7 +345,7 @@ useEffect(() => {
     const shouldSelfDrive =
       fileType?.startsWith("image") || videoEndedRef.current;
 
-    if (shouldSelfDrive) {
+        if (shouldSelfDrive) {
       if (lastTsRef.current == null) lastTsRef.current = now;
       const dt = (now - lastTsRef.current) / 1000;
       lastTsRef.current = now;
@@ -362,6 +362,7 @@ useEffect(() => {
         return next;
       });
     }
+
 
     scrollAnim();
     raf = requestAnimationFrame(tick);
@@ -910,6 +911,60 @@ const wireMusicGain = (idx: number) => {
 };
 // --- Mouse tekerleğiyle yakınlaştırma ---
 const handleWheelZoom = (e: React.WheelEvent<HTMLDivElement>) => {
+// --- Dokunmatik (iki parmak pinch) ile zoom ---
+// Başlangıç: iki parmak aynı anda ekrana değdiğinde
+const handleTouchStartZoom = (e: React.TouchEvent<HTMLDivElement>) => {
+  if (e.touches.length !== 2) return;
+
+  const t1 = e.touches[0];
+  const t2 = e.touches[1];
+
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  const dist = Math.hypot(dx, dy);
+
+  pinchZoomRef.current = {
+    startDist: dist,
+    startZoom: zoom, // o andaki zoom değeri referans
+  };
+};
+
+// Hareket: iki parmağın arası açılıp kapanırken zoom’u değiştir
+const handleTouchMoveZoom = (e: React.TouchEvent<HTMLDivElement>) => {
+  if (e.touches.length !== 2) return;
+  if (!pinchZoomRef.current) return;
+
+  e.preventDefault(); // sayfanın kendi zoom'unu engelle
+
+  const t1 = e.touches[0];
+  const t2 = e.touches[1];
+
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  const dist = Math.hypot(dx, dy);
+
+  const { startDist, startZoom } = pinchZoomRef.current;
+  if (startDist <= 0) return;
+
+  const scale = dist / startDist;          // 1'den büyükse yakınlaş, küçükse uzaklaş
+  let nextZoom = startZoom * scale;
+
+  const MIN_ZOOM = 0.25;
+  const MAX_ZOOM = 5;
+
+  if (nextZoom < MIN_ZOOM) nextZoom = MIN_ZOOM;
+  if (nextZoom > MAX_ZOOM) nextZoom = MAX_ZOOM;
+
+  setZoom(nextZoom);
+};
+
+// Biri parmağını kaldırınca pinch biter
+const handleTouchEndZoom = (e: React.TouchEvent<HTMLDivElement>) => {
+  if (e.touches.length < 2) {
+    pinchZoomRef.current = null;
+  }
+};
+
   // Sadece Alt basılıyken zoom aktif olsun
   if (!e.altKey) return;
 
@@ -962,8 +1017,10 @@ const makeMiddleDragZoom = (kind: TrackKind) => (e: React.MouseEvent<HTMLDivElem
     e.stopPropagation();
   }
 };
-// 🧲 CapCut-style drag (imleç sabit, scroll serbest)
-const makePanDrag = (kind: "video" | "music") => (e: React.MouseEvent<HTMLDivElement>) => {
+// 🧲 CapCut-style drag (imleç sabit, scroll serbest) — mouse + dokunma (pointer)
+const makePanDrag = (kind: "video" | "music") => (
+  e: React.PointerEvent<HTMLDivElement>
+) => {
   e.preventDefault();
 
   const viewport =
@@ -973,10 +1030,6 @@ const makePanDrag = (kind: "video" | "music") => (e: React.MouseEvent<HTMLDivEle
   isDraggingRef.current = true;
   const startX = e.clientX;
   const startScroll = viewport.scrollLeft;
-
-  // Drag başladığı anda iki track'in başlangıç scroll'larını kaydet
-  const videoStartScroll = videoViewportRef.current?.scrollLeft ?? 0;
-  const musicStartScroll = musicViewportRef.current?.scrollLeft ?? 0;
 
   // 🔁 Her pan başlangıcında uzun bası modunu sıfırla
   if (longPressTimerRef.current) {
@@ -990,8 +1043,8 @@ const makePanDrag = (kind: "video" | "music") => (e: React.MouseEvent<HTMLDivEle
     panSingleRef.current = kind; // "video" veya "music"
   }, LONG_PRESS_MS);
 
-  const onMove = (ev: MouseEvent) => {
-    // özgür sürükleme (long press segment drag) aktifken pan çalışmasın
+  const onMove = (ev: PointerEvent) => {
+    // özgür segment sürükleme aktifken pan çalışmasın
     if (freeDragRef.current?.active) return;
 
     const dx = ev.clientX - startX;
@@ -1070,12 +1123,14 @@ const makePanDrag = (kind: "video" | "music") => (e: React.MouseEvent<HTMLDivEle
     }
     panSingleRef.current = "none";
 
-    window.removeEventListener("mousemove", onMove);
-    window.removeEventListener("mouseup", onUp);
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
   };
 
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
 };
 
   // 🔁 Hız: sadece videoya etki etsin, müzik sabit kalsın
@@ -1774,13 +1829,14 @@ const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration 
  // --- UI ---
 return (   
   <main
-    className="
+   className="
       w-full min-h-screen
-      flex flex-col
+      flex flex-col items-center
       bg-black text-white
-      overflow-x-hidden overflow-y-auto
+      overflow-y-auto
       px-2 sm:px-4 pb-16
     "
+
     onClick={(e) => {
       // 🔹 Menüler her yerde tıklayınca kapansın
       setContextMenu(null);
@@ -2021,9 +2077,8 @@ onEnded={() => {
   // 🎬 Video bitti: siyah ekran göster
   setShowBlackFrame(true);
 
-  // Global oynatmayı kapat
-  setPlaying(false);
-  playingRef.current = false;
+  // ⏱ Artık süreyi video değil, biz akıtacağız
+  videoEndedRef.current = true;
 
   // Videoyu son karede sabitle (istersen 0'a da alabiliriz)
   if (videoRef.current) {
@@ -2033,14 +2088,11 @@ onEnded={() => {
     v.currentTime = end;
   }
 
-  // Ana müziği otomatik BAŞLATMA, varsa durdur
-  const a = audioRef.current;
-  if (a) {
-    a.pause();
-    // a.currentTime'i 0'a ALMADIĞIM için baştan tekrar başlamaz
-    // istersen buraya: a.currentTime = 0; da ekleyebiliriz
-  }
+  // 🎵 MÜZİĞE DOKUNMA:
+  // en uzun time bitene kadar çalmaya devam etsin.
 }}
+
+
 
 
     />
@@ -2131,7 +2183,8 @@ onEnded={() => {
 <div
   ref={videoViewportRef}
  className="hidden relative w-full h-[90px] overflow-x-scroll overflow-y-hidden bg-[#0b0b0b] rounded-md"
-  onMouseDown={makePanDrag("video")}
+  onPointerDown={makePanDrag("video")}
+
 >
   {/* time içeriği */}
   <div
@@ -2654,7 +2707,7 @@ frames?.length > 0
 )}
 
   {/* === MÜZİK VIEWPORT (PAN/ZOOM BAĞIMSIZ) === */}
-<div className="relative w-full max-w-[700px] mx-auto mt-4">
+<div className="relative w-full max-w-[700px] mx-auto mt-4 px-10">
   {/* 🎵 Sol dıştaki ikon (kutunun DIŞI) */}
   <button
     onClick={(e) => {
@@ -2689,9 +2742,10 @@ setTimeout(() => {
     }}
     title="Müzik Ekle"
     className="absolute -left-[56px] top-1/2 -translate-y-1/2 flex items-center justify-center
-               w-[42px] h-[42px] rounded-full bg-[#22c55e]/10 text-[#22c55e]
-               shadow-[0_0_12px_rgba(34,197,94,0.5)] hover:bg-[#22c55e]/20
-               hover:scale-110 active:scale-95 transition-all"
+           w-[42px] h-[42px] rounded-full bg-[#22c55e]/10 text-[#22c55e]
+           shadow-[0_0_12px_rgba(34,197,94,0.5)] hover:bg-[#22c55e]/20
+           hover:scale-110 active:scale-95 transition-all"
+
   >
     {/* %15 küçük ikon */}
     <span className="text-[24px] leading-none">🎵</span>
@@ -2706,7 +2760,8 @@ setTimeout(() => {
 className="relative w-full flex flex-col gap-2 overflow-x-auto scrollbar-hide rounded-xl select-none bg-[#0b0b0b] transition-all duration-300"
 onContextMenu={(e)=>e.preventDefault()}
 onWheel={handleWheelZoom}
-onMouseDown={makePanDrag("music")}
+onPointerDown={makePanDrag("music")}
+
 onMouseDownCapture={handleTimelineGrab}
     onAuxClick={(e)=>e.preventDefault()}
     title="Sol tuş: sürükle (pan) • Mouse tekerlek: zoom"
