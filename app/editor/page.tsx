@@ -110,10 +110,7 @@ const [duration, setDuration] = useState(0);
   const [appendVideos, setAppendVideos] = useState<AppendClip[]>([])
 // tek imleç kontrolü — hangi şerit aktif?
 const [activeTrack, setActiveTrack] = useState<'video' | 'music'>('video')
-// 🎛️ Video & Müzik scroll/zoom kilidi — varsayılan: kapalı
-const [linkTracks, setLinkTracks] = useState(false);
-// 🧱 Bağla modunda müziğin gelebileceği en sol scroll pozisyonu
-const [musicLockScroll, setMusicLockScroll] = useState<number | null>(null);
+
 
 // === CapCut-Style: her track kendi başlangıç ofsetiyle çalışır (saniye cinsinden)
 const [videoOffset, setVideoOffset] = useState(0);
@@ -303,6 +300,9 @@ const getAppendTotalSec = () =>
     return sum + (clip.duration ?? APPEND_CLIP_SEC);
   }, 0);
 const isDraggingRef = useRef(false);
+// 🔀 Pan modu: varsayılan iki track birlikte, uzun basınca sadece o track
+const panSingleRef = useRef<'none' | 'video' | 'music'>('none');
+
 // --- Editing UX: snap, drag, preview ---
 // px cinsinden snap eşiği (playhead'a, segment kenarlarına, saniye çizgilerine yapışma)
 const SNAP_PX = 8;
@@ -918,12 +918,12 @@ const handleWheelZoom = (e: React.WheelEvent<HTMLDivElement>) => {
 
   const targetVp = e.currentTarget as HTMLDivElement;
 
-  // Track'ler bağlıysa her iki viewport'u, değilse sadece hedefi güncelle
-  const viewports: HTMLDivElement[] = linkTracks
-    ? [videoViewportRef.current, musicViewportRef.current].filter(
-        (v): v is HTMLDivElement => !!v
-      )
-    : [targetVp];
+ // Artık buton yok: zoom her zaman iki track'e birden uygulanır
+const viewports: HTMLDivElement[] = [
+  videoViewportRef.current,
+  musicViewportRef.current,
+].filter((v): v is HTMLDivElement => !!v);
+
 
   setZoom((prevZoom) => {
     // deltaY > 0 → aşağı → uzaklaş, < 0 → yukarı → yakınlaş
@@ -965,44 +965,57 @@ const makeMiddleDragZoom = (kind: TrackKind) => (e: React.MouseEvent<HTMLDivElem
 // 🧲 CapCut-style drag (imleç sabit, scroll serbest)
 const makePanDrag = (kind: "video" | "music") => (e: React.MouseEvent<HTMLDivElement>) => {
   e.preventDefault();
+
   const viewport =
     kind === "video" ? videoViewportRef.current : musicViewportRef.current;
   if (!viewport) return;
+
   isDraggingRef.current = true;
   const startX = e.clientX;
   const startScroll = viewport.scrollLeft;
+
   // Drag başladığı anda iki track'in başlangıç scroll'larını kaydet
   const videoStartScroll = videoViewportRef.current?.scrollLeft ?? 0;
   const musicStartScroll = musicViewportRef.current?.scrollLeft ?? 0;
 
-    const onMove = (ev: MouseEvent) => {
-    // özgür sürükleme (long press) aktifken pan çalışmasın
+  // 🔁 Her pan başlangıcında uzun bası modunu sıfırla
+  if (longPressTimerRef.current) {
+    clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  }
+  panSingleRef.current = "none";
+
+  // ⏱ Kısa süre basılı tutunca sadece o track kayacak
+  longPressTimerRef.current = window.setTimeout(() => {
+    panSingleRef.current = kind; // "video" veya "music"
+  }, LONG_PRESS_MS);
+
+  const onMove = (ev: MouseEvent) => {
+    // özgür sürükleme (long press segment drag) aktifken pan çalışmasın
     if (freeDragRef.current?.active) return;
 
     const dx = ev.clientX - startX;
     const baseNext = Math.max(0, startScroll - dx);
 
-    if (linkTracks) {
-      // 🔗 Bağlı mod: iki track birlikte kayar ama aradaki mesafe korunur
-      const v = videoViewportRef.current;
-      const m = musicViewportRef.current;
+    const v = videoViewportRef.current;
+    const m = musicViewportRef.current;
 
-      if (v && m) {
-        if (kind === "video") {
-          // Videoyu baseNext'e götür, müziği aynı delta kadar oynat
-          const delta = baseNext - v.scrollLeft;
-          v.scrollLeft = baseNext;
-          m.scrollLeft += delta;
-        } else {
-          // Müzik sürükleniyorsa tam tersi
-          const delta = baseNext - m.scrollLeft;
-          m.scrollLeft = baseNext;
-          v.scrollLeft += delta;
-        }
-      }
-    } else {
-      // 🪶 Serbest mod: sadece o track kayar
+    // 🎯 Uzun basıya geçildiyse: sadece o track kayar
+    // Aksi halde: iki track birlikte kayar, aradaki mesafe korunur
+    if (!v || !m || panSingleRef.current === kind) {
+      // 🪶 Tek track modu
       viewport.scrollLeft = baseNext;
+    } else {
+      // 🔗 Bağlı mod – iki track birlikte
+      if (kind === "video") {
+        const delta = baseNext - v.scrollLeft;
+        v.scrollLeft = baseNext;
+        m.scrollLeft += delta;
+      } else {
+        const delta = baseNext - m.scrollLeft;
+        m.scrollLeft = baseNext;
+        v.scrollLeft += delta;
+      }
     }
 
     // Sürüklerken oynatma yoksa sadece VIDEO track time'ını güncelle
@@ -1043,12 +1056,19 @@ const makePanDrag = (kind: "video" | "music") => (e: React.MouseEvent<HTMLDivEle
       }
     }
 
-    // 🔴 SERBEST MOD: müzik ve video arasındaki ofseti kaydet
+    // 🔴 Tek track (müzik) pan yaptıysak offset'i kaydet
     const v = videoViewportRef.current;
     const m = musicViewportRef.current;
-    if (kind === "music" && v && m && !linkTracks) {
+    if (kind === "music" && v && m && panSingleRef.current === "music") {
       musicScrollOffsetRef.current = m.scrollLeft - v.scrollLeft;
     }
+
+    // ⏱ Uzun bası timer'ını ve pan modunu temizle
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    panSingleRef.current = "none";
 
     window.removeEventListener("mousemove", onMove);
     window.removeEventListener("mouseup", onUp);
@@ -1057,6 +1077,7 @@ const makePanDrag = (kind: "video" | "music") => (e: React.MouseEvent<HTMLDivEle
   window.addEventListener("mousemove", onMove);
   window.addEventListener("mouseup", onUp);
 };
+
   // 🔁 Hız: sadece videoya etki etsin, müzik sabit kalsın
   const applyPlaybackRate = (v: number) => {
     // Video varsa hızı değiştir
@@ -1710,30 +1731,39 @@ setDownloadUrl(url);
 
 
 
-  if (!fileUrl || !fileType) {
-    return (
-      <main
-        className="w-full h-auto flex flex-col items-center justify-center bg-black text-white overflow-y-scroll overflow-x-hidden"
-    onMouseDown={(e) => {
-  // sadece ANA boş alana basılırsa seçim temizlensin
-  if (e.target === e.currentTarget) {
-    setSelectedSegmentIndex(null);
-    setSelectedSegmentType(null);
-    setSelectedTrack("none");
-  }
-}}
+if (!fileUrl || !fileType) {
+  return (
+    <main
+      className="
+        w-full min-h-screen
+        flex flex-col items-center justify-center
+        bg-black text-white
+        overflow-x-hidden overflow-y-auto
+        px-3 py-6
+      "
+      onMouseDown={(e) => {
+        // sadece ANA boş alana basılırsa seçim temizlensin
+        if (e.target === e.currentTarget) {
+          setSelectedSegmentIndex(null);
+          setSelectedSegmentType(null);
+          setSelectedTrack("none");
+        }
+      }}
+    >
+      <p className="mb-4 text-center text-sm sm:text-base">
+        Medya bulunamadı. Ana sayfadan dosya seç.
+      </p>
 
+      <Link
+        href="/"
+        className="px-4 py-2 rounded bg-[#7e22ce] text-sm sm:text-base"
       >
-        <p>Medya bulunamadı. Ana sayfadan dosya seç.</p>
-        <Link
-          href="/"
-          className="px-4 py-2 rounded bg-[#7e22ce]"
-        >
-          Ana Sayfa
-        </Link>
-      </main>
-    );
-  }
+        Ana Sayfa
+      </Link>
+    </main>
+  );
+}
+
 const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration || 0);
   // --- Toplam süre hesabı (video + müzik + append klipler) ---
   const baseVideoDur = duration || 0;
@@ -1741,10 +1771,16 @@ const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration 
   const baseDurAll = Math.max(baseVideoDur, baseMusicDur);
   const totalDurationSec = baseDurAll + getAppendTotalSec();
 
-  // --- UI ---
- return (
-   <main
-    className="w-full max-w-[900px] mx-auto min-h-screen flex flex-col items-center justify-start bg-black text-white overflow-y-scroll overflow-x-hidden"
+ // --- UI ---
+return (   
+  <main
+    className="
+      w-full min-h-screen
+      flex flex-col
+      bg-black text-white
+      overflow-x-hidden overflow-y-auto
+      px-2 sm:px-4 pb-16
+    "
     onClick={(e) => {
       // 🔹 Menüler her yerde tıklayınca kapansın
       setContextMenu(null);
@@ -1757,6 +1793,7 @@ const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration 
       setSelectedTrack("none");
     }}
   >
+
 {(isLoading || appendImporting) && (
   <div className="fixed inset-0 flex flex-col items-center justify-center bg-black z-[99999] transition-opacity duration-700">
     <h1 className="text-3xl font-bold text-white mb-4 animate-pulse">
@@ -2615,46 +2652,7 @@ frames?.length > 0
     +{appendVideos.length} klip
   </div>
 )}
-{/* 🔗 Bağlı / 🪶 Serbest – Müzik Ekle’nin ÜSTÜNE konumlanır */}
-<button
-   onClick={(e) => {
-    e.stopPropagation();
-  setLinkTracks(prev => {
-  const next = !prev;
 
-  if (next) {
-    // 🔒 Bağla’ya geçerken, O ANKİ video ve müzik scroll farkını offset olarak kaydet
-    const v = videoViewportRef.current;
-    const m = musicViewportRef.current;
-
-    if (v && m) {
-      // px cinsinden fark: müzik, videodan ne kadar ileride/geride?
-      musicScrollOffsetRef.current = m.scrollLeft - v.scrollLeft;
-    }
-
-    // Müzik için sol kilidi de güncelle (eski davranış)
-    if (m) setMusicLockScroll(m.scrollLeft);
-  } else {
-    // 🪶 Serbest’e dönünce sadece kilidi temizle
-    setMusicLockScroll(null);
-    // İstersen burada offset'i SIFIRLAMAYABİLİRİZ.
-    // Böylece serbest modda da mevcut fark korunur.
-    // musicScrollOffsetRef.current'u dokunmadan bırakmak iyi çalışıyor.
-  }
-
-  return next;
-});
-
-  }}
-
-  title={linkTracks ? "Zinciri aç (serbest kaydır)" : "Zinciri kapat (bağlı kaydır)"}
-  className={`absolute -left-[56px] top-[calc(50%-52px)] -translate-y-1/2
-              w-[42px] h-[42px] rounded-full z-20
-              shadow-[0_0_12px_rgba(34,197,94,0.5)] hover:scale-110 active:scale-95 transition-all
-              ${linkTracks ? "bg-[#22c55e]/20 text-[#22c55e]" : "bg-[#3a3a3a] text-white"}`}
->
-  {linkTracks ? "🔗" : "🪶"}
-</button>
   {/* === MÜZİK VIEWPORT (PAN/ZOOM BAĞIMSIZ) === */}
 <div className="relative w-full max-w-[700px] mx-auto mt-4">
   {/* 🎵 Sol dıştaki ikon (kutunun DIŞI) */}
