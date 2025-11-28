@@ -1742,7 +1742,6 @@ if (!fileUrl || !fileType) {
         px-3 py-6
       "
       onMouseDown={(e) => {
-        // sadece ANA boş alana basılırsa seçim temizlensin
         if (e.target === e.currentTarget) {
           setSelectedSegmentIndex(null);
           setSelectedSegmentType(null);
@@ -1763,6 +1762,7 @@ if (!fileUrl || !fileType) {
     </main>
   );
 }
+
 
 const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration || 0);
   // --- Toplam süre hesabı (video + müzik + append klipler) ---
