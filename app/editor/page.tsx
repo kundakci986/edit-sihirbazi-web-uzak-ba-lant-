@@ -1744,8 +1744,7 @@ const mediaDur = Math.min(duration || 0, audioRef.current?.duration || duration 
   // --- UI ---
  return (
    <main
-   <main
-  className="w-full max-w-[900px] mx-auto min-h-screen flex flex-col items-center justify-start bg-black text-white overflow-y-auto overflow-x-hidden px-2"
+    className="w-full max-w-[900px] mx-auto min-h-screen flex flex-col items-center justify-start bg-black text-white overflow-y-scroll overflow-x-hidden"
     onClick={(e) => {
       // 🔹 Menüler her yerde tıklayınca kapansın
       setContextMenu(null);
